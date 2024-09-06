@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include <string.h>
 
+int line_number = 1;
+
 typedef enum {
     SPROGRAMA,
     SINICIO,
@@ -95,13 +97,12 @@ typedef struct
 typedef struct
 {
     FILE *file;
-    int line_number;
     char character;
 } Lexer;
 
 void exit_error(const char *message)
 {
-    fprintf(stderr, "%s\n", message);
+    fprintf(stderr, "Error on line %d: %s\n", line_number, message);
     exit(EXIT_FAILURE);
 }
 
@@ -117,7 +118,6 @@ Lexer *lexer_init(const char *filename)
         exit_error("I/O: Error opening the file.");
     }
 
-    lexer->line_number = 0;
     lexer->character = fgetc(lexer->file);
     return lexer;
 }
@@ -148,7 +148,7 @@ Token *lexer_token(Lexer *lexer)
 {
     while (lexer->character == '\n' || lexer->character == '\r') {
         lexer->character = fgetc(lexer->file);
-        lexer->line_number++;
+        line_number++;
     }
 
     if (lexer->character != EOF && lexer->character != '\xff') {
@@ -156,15 +156,18 @@ Token *lexer_token(Lexer *lexer)
             if (lexer->character == '{') {
                 while (lexer->character != '}' && lexer->character != EOF && lexer->character != '\xff') {
                     if (lexer->character == '\n' || lexer->character == '\r') {
-                        lexer->line_number++;
+                        line_number++;
                     }
                     lexer->character = fgetc(lexer->file);
+                }
+                if (lexer->character == EOF || lexer->character == '\xff') {
+                    exit_error("Lexical error: Unclosed comment block.");
                 }
                 lexer->character = fgetc(lexer->file);
             }
             while (lexer->character == ' ' || lexer->character == '\b' || lexer->character == '\t' || lexer->character == '\n' || lexer->character == '\r') {
                 if (lexer->character == '\n' || lexer->character == '\r') {
-                    lexer->line_number++;
+                    line_number++;
                 }
                 lexer->character = fgetc(lexer->file);
             }
