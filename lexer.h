@@ -1,98 +1,15 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include "./utils/exception.h"
+#include "./constants/symbols.h"
+#include "./utils/token.h"
 
 int line_number = 1;
-
-typedef enum {
-    SPROGRAMA,
-    SINICIO,
-    SFIM,
-    SPROCEDIMENTO,
-    SFUNCAO,
-    SSE,
-    SENTAO,
-    SSENAO,
-    SENQUANTO,
-    SFACA,
-    SATRIBUICAO,
-    SESCREVA,
-    SLEIA,
-    SVAR,
-    SINTEIRO,
-    SBOLEANO,
-    SIDENTIFICADOR,
-    SNUMERO,
-    SPONTO,
-    SPONTOEVIRGULA,
-    SVIRGULA,
-    SABREPARENTESES,
-    SFECHAPARENTESES,
-    SMAIOR,
-    SMAIORIG,
-    SIG,
-    SMENOR,
-    SMENORIG,
-    SDIF,
-    SMAIS,
-    SMENOS,
-    SMULT,
-    SDIV,
-    SE,
-    SOU,
-    SNAO,
-    SDOISPONTOS,
-    SVERDADEIRO,
-    SFALSO
-} Symbols;
-
-const char *SymbolNames[] = {
-    "SPROGRAMA",
-    "SINICIO",
-    "SFIM",
-    "SPROCEDIMENTO",
-    "SFUNCAO",
-    "SSE",
-    "SENTAO",
-    "SSENAO",
-    "SENQUANTO",
-    "SFACA",
-    "SATRIBUICAO",
-    "SESCREVA",
-    "SLEIA",
-    "SVAR",
-    "SINTEIRO",
-    "SBOLEANO",
-    "SIDENTIFICADOR",
-    "SNUMERO",
-    "SPONTO",
-    "SPONTOEVIRGULA",
-    "SVIRGULA",
-    "SABREPARENTESES",
-    "SFECHAPARENTESES",
-    "SMAIOR",
-    "SMAIORIG",
-    "SIG",
-    "SMENOR",
-    "SMENORIG",
-    "SDIF",
-    "SMAIS",
-    "SMENOS",
-    "SMULT",
-    "SDIV",
-    "SE",
-    "SOU",
-    "SNAO",
-    "SDOISPONTOS",
-    "SVERDADEIRO",
-    "SFALSO"};
-
-typedef struct
-{
-    char *lexeme;
-    Symbols symbol;
-} Token;
 
 typedef struct
 {
@@ -100,22 +17,16 @@ typedef struct
     char character;
 } Lexer;
 
-void exit_error(const char *message)
-{
-    fprintf(stderr, "Error on line %d: %s\n", line_number, message);
-    exit(EXIT_FAILURE);
-}
-
 Lexer *lexer_init(const char *filename)
 {
-    Lexer *lexer = malloc(sizeof(Lexer));
+    Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
     if (!lexer) {
-        exit_error("Memory allocation failed");
+        exit_error("Memory allocation failed", line_number);
     }
 
     lexer->file = fopen(filename, "r");
     if (!lexer->file) {
-        exit_error("I/O: Error opening the file.");
+        exit_error("I/O: Error opening the file.", line_number);
     }
 
     lexer->character = fgetc(lexer->file);
@@ -126,14 +37,6 @@ void lexer_destroy(Lexer *lexer)
 {
     fclose(lexer->file);
     free(lexer);
-}
-
-Token *create_token(const char *lexeme, int symbol)
-{
-    Token *token = (Token *)malloc(sizeof(Token));
-    token->lexeme = strdup(lexeme);
-    token->symbol = symbol;
-    return token;
 }
 
 void free_token(Token *token)
@@ -161,7 +64,7 @@ Token *lexer_token(Lexer *lexer)
                     lexer->character = fgetc(lexer->file);
                 }
                 if (lexer->character == EOF || lexer->character == '\xff') {
-                    exit_error("Lexical error: Unclosed comment block.");
+                    exit_error("Lexical error: Unclosed comment block.", line_number);
                 }
                 lexer->character = fgetc(lexer->file);
             }
@@ -267,12 +170,12 @@ Token *lexer_handle_assignment(Lexer *lexer)
 
 Token *lexer_handle_arithmetic_op(Lexer *lexer)
 {
-    char operator= lexer->character;
+    char op = lexer->character;
     lexer->character = fgetc(lexer->file);
 
-    if (operator== '+')
+    if (op == '+')
         return create_token("+", SMAIS);
-    if (operator== '-')
+    if (op == '-')
         return create_token("-", SMENOS);
     return create_token("*", SMULT);
 }
@@ -290,7 +193,7 @@ Token *lexer_handle_relational_op(Lexer *lexer)
             return create_token(relational_op, SDIF);
         }
         else {
-            exit_error("Lexical error: Invalid character '!'.");
+            exit_error("Lexical error: Invalid character '!'.", line_number);
         }
     }
     else if (relational_op[0] == '=') {
@@ -358,40 +261,14 @@ Token *lexer_get_token(Lexer *lexer)
         return create_token(".", SPONTO);
     }
     else {
-        exit_error("Lexical error: Unknown character.");
+        exit_error("Lexical error: Unknown character.", line_number);
     }
     return NULL;
 }
 
-int main(int argc, char *argv[])
+int get_line_number()
 {
-    if (argc != 2) {
-        exit_error("Usage: ./lexer <source_file>");
-    }
-
-    Lexer *lexer = lexer_init(argv[1]);
-    Token *token = NULL;
-    Token *last_token = NULL;
-    FILE *file = fopen("lexer_output.txt", "w");
-
-    while ((token = lexer_token(lexer)) != NULL) {
-        if (last_token) {
-            free_token(last_token);
-        }
-        last_token = token;
-
-        fprintf(file, "Token: %-10s | Symbol: %-10s\n", token->lexeme, SymbolNames[token->symbol]);
-    }
-
-    if (last_token && last_token->symbol != SPONTO) {
-        exit_error("Syntax error: Program should end with a '.'");
-    }
-
-    if (last_token) {
-        free_token(last_token);
-    }
-
-    lexer_destroy(lexer);
-    fclose(file);
-    return 0;
+    return line_number;
 }
+
+#endif // LEXER_H
