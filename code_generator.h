@@ -6,77 +6,85 @@
 #include <string.h>
 #include "./constants/commands.h"
 
-FILE *out_file = NULL;
+typedef struct {
+    FILE *out_file;
+} CodeGenerator;
 
-void create_file(const char *filename)
+CodeGenerator *create_code_generator(const char *filename)
 {
-    out_file = fopen(filename, "w");
-    if (!out_file) {
+    CodeGenerator *code_generator = (CodeGenerator *)malloc(sizeof(CodeGenerator));
+    if (!code_generator) {
+        perror("Error creating code generator");
+        exit(EXIT_FAILURE);
+    }
+    code_generator->out_file = fopen(filename, "w");
+    if (!code_generator->out_file) {
         perror("Error creating file");
         exit(EXIT_FAILURE);
     }
+    return code_generator;
 }
 
-void generate_label(int n)
+void generate_label(CodeGenerator *code_generator, int label)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "L%d\tNULL\n", n);
-    printf("L%d\tNULL\n", n);
+    fprintf(code_generator->out_file, "L%d:\n", label);
+    printf("L%d:\n", label);
 }
 
-void generate(const char *op)
+void generate(CodeGenerator *code_generator, const char *op)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "\t%s\n", op);
+    fprintf(code_generator->out_file, "\t%s\n", op);
     printf("\t%s\n", op);
 }
 
-void generate_with_string(const char *op, const char *arg1)
+void generate_with_string(CodeGenerator *code_generator, const char *op, const char *arg1)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "\t%s\t%s\n", op, arg1);
+    fprintf(code_generator->out_file, "\t%s\t%s\n", op, arg1);
     printf("\t%s\t%s\n", op, arg1);
 }
 
-void generate_with_int(const char *op, int arg1)
+void generate_with_int(CodeGenerator *code_generator, const char *op, int arg1)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "\t%s\t%d\n", op, arg1);
+    fprintf(code_generator->out_file, "\t%s\t%d\n", op, arg1);
     printf("\t%s\t%d\n", op, arg1);
 }
 
-void generate_with_two_strings(const char *op, const char *arg1, const char *arg2)
+void generate_with_two_strings(CodeGenerator *code_generator, const char *op, const char *arg1, const char *arg2)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "\t%s\t%s\t%s\n", op, arg1, arg2);
+    fprintf(code_generator->out_file, "\t%s\t%s\t%s\n", op, arg1, arg2);
     printf("\t%s\t%s\t%s\n", op, arg1, arg2);
 }
 
-void generate_with_two_ints(const char *op, int arg1, int arg2)
+void generate_with_two_ints(CodeGenerator *code_generator, const char *op, int arg1, int arg2)
 {
-    if (!out_file) {
-        create_file("code_generator_output.vmobj");
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
-    fprintf(out_file, "\t%s\t%d\t%d\n", op, arg1, arg2);
+    fprintf(code_generator->out_file, "\t%s\t%d\t%d\n", op, arg1, arg2);
     printf("\t%s\t%d\t%d\n", op, arg1, arg2);
 }
 
-void close_file()
+void close_file(CodeGenerator *code_generator)
 {
-    if (out_file) {
-        fclose(out_file);
-        out_file = NULL;
+    if (!code_generator->out_file) {
+        create_code_generator("code_generator_output.vmobj");
     }
+    fclose(code_generator->out_file);
 }
 
 #endif // CODE_GENERATOR_H
