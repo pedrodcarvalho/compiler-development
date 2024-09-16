@@ -20,10 +20,6 @@ int main(int argc, char *argv[])
         fprintf(file, "Lexeme: %-10s | Symbol: %-10s\n", token->lexeme, SymbolNames[token->symbol]);
     }
 
-    if (last_token && last_token->symbol != SPONTO) {
-        exit_error("Syntax error: Program should end with a '.'", line_number);
-    }
-
     if (last_token) {
         free_token(last_token);
     }

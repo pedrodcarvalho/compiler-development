@@ -9,7 +9,7 @@
 #include "./constants/symbols.h"
 #include "./utils/token.h"
 
-int line_number = 1;
+int line_number = 0;
 
 typedef struct
 {
@@ -58,7 +58,8 @@ Token *lexer_token(Lexer *lexer)
         while (lexer->character == '{' || lexer->character == ' ' || lexer->character == '\b' || lexer->character == '\t') {
             if (lexer->character == '{') {
                 while (lexer->character != '}' && lexer->character != EOF && lexer->character != '\xff') {
-                    if (lexer->character == '\n' || lexer->character == '\r') {
+                    // In CRLF format the line number would be incremented twice, thus we check only for '\n'.
+                    if (lexer->character == '\n' /* || lexer->character == '\r' */) {
                         line_number++;
                     }
                     lexer->character = fgetc(lexer->file);
@@ -193,7 +194,7 @@ Token *lexer_handle_relational_op(Lexer *lexer)
             return create_token(relational_op, SDIF);
         }
         else {
-            exit_error("Lexical error: Invalid character '!'.", line_number);
+            return create_token(relational_op, SERRO);
         }
     }
     else if (relational_op[0] == '=') {
@@ -261,7 +262,13 @@ Token *lexer_get_token(Lexer *lexer)
         return create_token(".", SPONTO);
     }
     else {
-        exit_error("Lexical error: Unknown character.", line_number);
+        char *lexeme = (char *)malloc(2 * sizeof(char));
+        lexeme[0] = lexer->character;
+        lexeme[1] = '\0';
+
+        lexer->character = fgetc(lexer->file);
+
+        return create_token(lexeme, SERRO);
     }
     return NULL;
 }

@@ -42,7 +42,8 @@ typedef enum {
     SVERDADEIRO,
     SFALSO,
     SPOSITIVO,
-    SNEGATIVO
+    SNEGATIVO,
+    SERRO
 } Symbols;
 
 const char *SymbolNames[] = {
@@ -86,7 +87,8 @@ const char *SymbolNames[] = {
     "SVERDADEIRO",
     "SFALSO",
     "SPOSITIVO",
-    "SNEGATIVO"};
+    "SNEGATIVO",
+    "SERRO"};
 
 int is_operand(Symbols symbol)
 {
