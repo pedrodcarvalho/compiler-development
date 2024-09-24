@@ -198,4 +198,14 @@ Token **infix_to_postfix(Semantic *semantic, Token **expression, int size, int *
     return new_expression;
 }
 
+Symbol *new_symbol(int type, char *lexeme, int scope, char *memory_address)
+{
+    Symbol *symbol = (Symbol *)malloc(sizeof(Symbol));
+    symbol->type = type;
+    symbol->lexeme = lexeme;
+    symbol->scope = scope;
+    symbol->memory_address = memory_address;
+    return symbol;
+}
+
 #endif // SEMANTIC_C

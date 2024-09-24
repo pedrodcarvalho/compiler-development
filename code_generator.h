@@ -17,7 +17,10 @@ CodeGenerator *create_code_generator(const char *filename)
         perror("Error creating code generator");
         exit(EXIT_FAILURE);
     }
-    code_generator->out_file = fopen(filename, "w");
+    char *new_filename = (char *)malloc(sizeof(char) * 100);
+    strncpy(new_filename, filename, strlen(filename) - 4);
+    strcat(new_filename, ".vmobj");
+    code_generator->out_file = fopen(new_filename, "w");
     if (!code_generator->out_file) {
         perror("Error creating file");
         exit(EXIT_FAILURE);
