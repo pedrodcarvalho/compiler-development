@@ -7,6 +7,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     parser_init(argv[1]);
-    analisa_programa();
+    analyze_program();
     return 0;
 }
