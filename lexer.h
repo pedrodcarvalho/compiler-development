@@ -9,7 +9,7 @@
 #include "./constants/symbols.h"
 #include "./utils/token.h"
 
-int line_number = 0;
+int line_number = 1;
 
 typedef struct
 {
@@ -194,7 +194,7 @@ Token *lexer_handle_relational_op(Lexer *lexer)
             return create_token(relational_op, SDIF);
         }
         else {
-            return create_token(relational_op, SERRO);
+            exit_error("Lexical error: Expected '=' after '!'", line_number);
         }
     }
     else if (relational_op[0] == '=') {
@@ -268,7 +268,7 @@ Token *lexer_get_token(Lexer *lexer)
 
         lexer->character = fgetc(lexer->file);
 
-        return create_token(lexeme, SERRO);
+        exit_error("Lexical error: Invalid character", line_number);
     }
     return NULL;
 }

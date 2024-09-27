@@ -1,7 +1,0 @@
-programa: inteiro
-                                    se x > < ou = a y entao
-		faca x
-                                     :=
-                                          y <> z
-                                                        ;
-fim.

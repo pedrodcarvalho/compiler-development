@@ -26,5 +26,6 @@ int main(int argc, char *argv[])
 
     lexer_destroy(lexer);
     fclose(file);
+    printf("Successfully wrote the output to lexer_output.txt\n");
     return 0;
 }
