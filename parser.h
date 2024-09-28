@@ -12,10 +12,10 @@ void analyze_variables();
 void analyze_types();
 void analyze_commands();
 void analyze_simple_command();
-void analyze_procedure_call();
-void analyze_function_call();
+void analyze_procedure_call_assignment();
 void analyze_assignment();
-void procedure_call();
+void analyze_function_call();
+void analyze_procedure_call();
 void analyze_read();
 void analyze_write();
 void analyze_while();
@@ -156,11 +156,6 @@ void analyze_commands()
         }
         token = lexer_token(lexer);
     }
-    // ADICIONADO MANUALMENTE (PODE ESTAR ERRADO)
-    else if (token->symbol == SSENAO) {
-        token = lexer_token(lexer);
-        analyze_simple_command();
-    }
     else {
         exit_error("Syntax error. Expected 'inicio' token", line_number);
     }
@@ -169,7 +164,7 @@ void analyze_commands()
 void analyze_simple_command()
 {
     if (token->symbol == SIDENTIFICADOR) {
-        analyze_procedure_call();
+        analyze_procedure_call_assignment();
     }
     else if (token->symbol == SSE) {
         analyze_if();
@@ -188,20 +183,15 @@ void analyze_simple_command()
     }
 }
 
-void analyze_procedure_call()
+void analyze_procedure_call_assignment()
 {
     token = lexer_token(lexer);
     if (token->symbol == SATRIBUICAO) {
         analyze_assignment();
     }
     else {
-        procedure_call();
+        analyze_procedure_call();
     }
-}
-
-void analyze_function_call()
-{
-    token = lexer_token(lexer);
 }
 
 void analyze_assignment()
@@ -210,7 +200,12 @@ void analyze_assignment()
     analyze_expression();
 }
 
-void procedure_call()
+void analyze_function_call()
+{
+    token = lexer_token(lexer);
+}
+
+void analyze_procedure_call()
 {
     // TODO: Code Generation
 }
@@ -281,7 +276,7 @@ void analyze_if()
     if (token->symbol == SENTAO) {
         token = lexer_token(lexer);
         analyze_simple_command();
-        if (token->symbol == SENTAO) {
+        if (token->symbol == SSENAO) {
             token = lexer_token(lexer);
             analyze_simple_command();
         }
