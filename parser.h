@@ -30,6 +30,8 @@ void analyze_factor();
 
 Lexer *lexer = NULL;
 Token *token = NULL;
+int current_scope = 0;
+int memory_address = 0;
 
 void parser_init(char *file)
 {
@@ -45,7 +47,7 @@ void analyze_program()
             token = lexer_token(lexer);
             if (token->symbol == SPONTOEVIRGULA) {
                 analyze_code_block();
-                if (token->symbol == SPONTO) {
+                if (token != NULL && token->symbol == SPONTO) {
                     token = lexer_token(lexer);
                     if (lexer->character == EOF || lexer->character == '}') {
                         printf("Success. No syntax errors found.\n");
@@ -104,6 +106,12 @@ void analyze_variables()
 {
     do {
         if (token->symbol == SIDENTIFICADOR) {
+            if (!verifica_duplicidade(token->lexeme, current_scope)) {
+                insere_tabela(token->lexeme, SVAR, current_scope, memory_address++);
+            }
+            else {
+                exit_error("Syntax error. Duplicated identifier", line_number);
+            }
             token = lexer_token(lexer);
             if ((token->symbol == SVIRGULA) || (token->symbol == SDOISPONTOS)) {
                 if (token->symbol == SVIRGULA) {
@@ -131,6 +139,11 @@ void analyze_types()
         exit_error("Syntax error. Expected and integer or a boolean value", line_number);
     }
     else {
+        for (int i = symbols_count - 1; i >= 0; i--) {
+            if (symbols_table[i].type == VARIABLE) {
+                atualiza_tipo_tabela(symbols_table[i].lexeme, (token->symbol == SINTEIRO) ? INTEGER : BOOLEAN);
+            }
+        }
         token = lexer_token(lexer);
     }
 }
@@ -216,6 +229,9 @@ void analyze_read()
     if (token->symbol == SABREPARENTESES) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
+            if (busca_tabela(token->lexeme) == -1) {
+                exit_error("Syntax error. Identifier not found", line_number);
+            }
             token = lexer_token(lexer);
             if (token->symbol == SFECHAPARENTESES) {
                 token = lexer_token(lexer);
@@ -239,6 +255,9 @@ void analyze_write()
     if (token->symbol == SABREPARENTESES) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
+            if (busca_tabela(token->lexeme) == -1) {
+                exit_error("Syntax error. Identifier not found", line_number);
+            }
             token = lexer_token(lexer);
             if (token->symbol == SFECHAPARENTESES) {
                 token = lexer_token(lexer);
@@ -288,6 +307,7 @@ void analyze_if()
 
 void analyze_subroutine()
 {
+    current_scope++;
     while ((token->symbol == SPROCEDIMENTO) || (token->symbol == SFUNCAO)) {
         if (token->symbol == SPROCEDIMENTO) {
             analyze_procedure_declaration();
@@ -302,6 +322,7 @@ void analyze_subroutine()
             exit_error("Syntax error. Expected ';' token", line_number);
         }
     }
+    current_scope--;
 }
 
 void analyze_procedure_declaration()

@@ -7,29 +7,29 @@ typedef struct Symbol {
     int type;
     char *lexeme;
     int scope;
-    char *memory_address;
+    int memory_address;
 } Symbol;
 
-Symbol *create_symbol(int type, const char *lexeme, int scope, const char *memory_address)
+Symbol *create_symbol(int type, const char *lexeme, int scope, const int memory_address)
 {
     Symbol *symbol = (Symbol *)malloc(sizeof(Symbol));
     symbol->type = type;
     symbol->lexeme = strdup(lexeme);
     symbol->scope = scope;
-    memory_address ? (symbol->memory_address = strdup(memory_address)) : (symbol->memory_address = NULL);
+    symbol->memory_address = memory_address;
     return symbol;
 }
 
-void symbol_set_memory_address(Symbol *symbol, const char *memory_address)
+void symbol_set_memory_address(Symbol *symbol, const int memory_address)
 {
-    memory_address ? (symbol->memory_address = strdup(memory_address)) : (symbol->memory_address = NULL);
+    symbol->memory_address = memory_address;
 }
 
-void symbol_set_memory_address_with_label(Symbol *symbol, int label)
+char *symbol_set_memory_address_with_label(Symbol *symbol, int label)
 {
-    char *memory_address = (char *)malloc(sizeof(char) * 100);
-    sprintf(memory_address, "%s%d", SymbolNames[LABEL], label);
-    symbol->memory_address = memory_address;
+    char *memory_address = (char *)malloc(10);
+    sprintf(memory_address, "%d", label);
+    return memory_address;
 }
 
 void symbol_set_lexeme(Symbol *symbol, const char *lexeme)
@@ -52,7 +52,7 @@ int symbol_get_type(Symbol *symbol)
     return symbol->type;
 }
 
-const char *symbol_get_memory_address(Symbol *symbol)
+int symbol_get_memory_address(Symbol *symbol)
 {
     return symbol->memory_address;
 }
