@@ -31,6 +31,8 @@ void analyze_factor();
 Lexer *lexer = NULL;
 Token *token = NULL;
 int current_scope = 0;
+int scope_counter = 0;
+int label = 0;
 int memory_address = 0;
 
 void parser_init(char *file)
@@ -44,12 +46,14 @@ void analyze_program()
     if (token->symbol == SPROGRAMA) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
+            insere_tabela(token->lexeme, PROGRAM_NAME, current_scope, memory_address++);
             token = lexer_token(lexer);
             if (token->symbol == SPONTOEVIRGULA) {
                 analyze_code_block();
                 if (token != NULL && token->symbol == SPONTO) {
                     token = lexer_token(lexer);
                     if (lexer->character == EOF || lexer->character == '}') {
+                        print_table();
                         printf("Success. No syntax errors found.\n");
                     }
                     else {
@@ -106,8 +110,8 @@ void analyze_variables()
 {
     do {
         if (token->symbol == SIDENTIFICADOR) {
-            if (!verifica_duplicidade(token->lexeme, current_scope)) {
-                insere_tabela(token->lexeme, SVAR, current_scope, memory_address++);
+            if (!verifica_duplicidade(token->lexeme, scope_counter)) {
+                insere_tabela(token->lexeme, VARIABLE, scope_counter, memory_address++);
             }
             else {
                 exit_error("Syntax error. Duplicated identifier", line_number);
@@ -198,12 +202,13 @@ void analyze_simple_command()
 
 void analyze_procedure_call_assignment()
 {
+    Token aux = *token;
     token = lexer_token(lexer);
     if (token->symbol == SATRIBUICAO) {
         analyze_assignment();
     }
     else {
-        analyze_procedure_call();
+        analyze_procedure_call(&aux);
     }
 }
 
@@ -218,8 +223,11 @@ void analyze_function_call()
     token = lexer_token(lexer);
 }
 
-void analyze_procedure_call()
+void analyze_procedure_call(Token *token)
 {
+    if (pesquisa_declproc_tabela(token->lexeme) == -1) {
+        exit_error("Syntax error. Procedure not found", line_number);
+    }
     // TODO: Code Generation
 }
 
@@ -307,7 +315,7 @@ void analyze_if()
 
 void analyze_subroutine()
 {
-    current_scope++;
+    // current_scope++;
     while ((token->symbol == SPROCEDIMENTO) || (token->symbol == SFUNCAO)) {
         if (token->symbol == SPROCEDIMENTO) {
             analyze_procedure_declaration();
@@ -322,13 +330,20 @@ void analyze_subroutine()
             exit_error("Syntax error. Expected ';' token", line_number);
         }
     }
-    current_scope--;
+    // current_scope--;
 }
 
 void analyze_procedure_declaration()
 {
     token = lexer_token(lexer);
+    current_scope++;
+    scope_counter++;
     if (token->symbol == SIDENTIFICADOR) {
+        if (pesquisa_declproc_tabela(token->lexeme) != -1) {
+            exit_error("Syntax error. Duplicated procedure declaration", line_number);
+        }
+        insere_tabela(token->lexeme, PROCEDURE, scope_counter, label);
+        label++;
         token = lexer_token(lexer);
         if (token->symbol == SPONTOEVIRGULA) {
             analyze_code_block();
@@ -340,16 +355,30 @@ void analyze_procedure_declaration()
     else {
         exit_error("Syntax error. Expected an identifier", line_number);
     }
+    current_scope--;
 }
 
 void analyze_function_declaration()
 {
     token = lexer_token(lexer);
+    current_scope++;
+    scope_counter++;
     if (token->symbol == SIDENTIFICADOR) {
+        if (pesquisa_declfunc_tabela(token->lexeme) != -1) {
+            exit_error("Syntax error. Duplicated function declaration", line_number);
+        }
+        insere_tabela(token->lexeme, FUNCTION, scope_counter, label);
+        label++;
         token = lexer_token(lexer);
         if (token->symbol == SDOISPONTOS) {
             token = lexer_token(lexer);
             if ((token->symbol == SINTEIRO) || (token->symbol == SBOLEANO)) {
+                if (token->symbol == SINTEIRO) {
+                    symbols_table[symbols_count - 1].type = INTEGER_FUNCTION;
+                }
+                else {
+                    symbols_table[symbols_count - 1].type = BOOLEAN_FUNCTION;
+                }
                 token = lexer_token(lexer);
                 if (token->symbol == SPONTOEVIRGULA) {
                     analyze_code_block();
@@ -369,6 +398,7 @@ void analyze_function_declaration()
     else {
         exit_error("Syntax error. Expected an identifier", line_number);
     }
+    current_scope--;
 }
 
 void analyze_expression()
@@ -404,7 +434,16 @@ void analyze_term()
 void analyze_factor()
 {
     if (token->symbol == SIDENTIFICADOR) {
-        token = lexer_token(lexer);
+        int indice = busca_tabela(token->lexeme);
+        if (indice == -1) {
+            exit_error("Syntax error. Identifier not found", line_number);
+        }
+        if (symbols_table[indice].type == INTEGER_FUNCTION || symbols_table[indice].type == BOOLEAN_FUNCTION) {
+            analyze_function_call();
+        }
+        else {
+            token = lexer_token(lexer);
+        }
     }
     else if (token->symbol == SNUMERO) {
         token = lexer_token(lexer);
