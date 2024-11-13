@@ -1,8 +1,6 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
 
-#include "../constants/commands.h"
-
 typedef struct Symbol {
     int type;
     char *lexeme;

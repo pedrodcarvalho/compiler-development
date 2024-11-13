@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #include "lexer.h"
+#include "code_generator.h"
 #include "./utils/symbol_table.h"
 #include "./utils/exception.h"
 
@@ -28,35 +29,55 @@ void analyze_simple_expression();
 void analyze_term();
 void analyze_factor();
 void replace_unary();
+Token **remove_assignment_from_expression();
 
 Lexer *lexer = NULL;
 Token *token = NULL;
+CodeGenerator generator;
 int current_scope = 0;
 int scope_counter = 0;
 int label = 0;
 int memory_address = 0;
 int expression_size = 0;
+int parsed_expression_size = 0;
+int variables_count = 0;
+int aux_memory_address = 0;
+int *aux_dealloc = NULL;
 
 void parser_init(char *file)
 {
     lexer = lexer_init(file);
+    initializeCodeGenerator(&generator);
 }
 
 void analyze_program()
 {
     token = lexer_token(lexer);
     if (token->symbol == SPROGRAMA) {
+        generate(&generator, NULL, START, NULL, NULL);
+        variables_count = 0;
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
             insere_tabela(token->lexeme, PROGRAM_NAME, current_scope, memory_address++);
             token = lexer_token(lexer);
             if (token->symbol == SPONTOEVIRGULA) {
                 analyze_code_block();
+                // we need to deallocate all variables based on symbols table size
+                int one = 1;
+                for (int i = symbols_count - 2; i >= 0; i--) {
+                    if (symbols_table[i].scope == 0) {
+                        variables_count++;
+                    }
+                }
+                generate(&generator, NULL, DALLOC, &one, &variables_count);
                 if (token != NULL && token->symbol == SPONTO) {
                     token = lexer_token(lexer);
                     if (lexer->character == EOF || lexer->character == '}') {
+                        generate(&generator, NULL, HLT, NULL, NULL);
                         // print_table(); // DEBUG
                         // print_expression(expression_size); // DEBUG
+                        debugCode(&generator);
+                        saveCodeToFile(&generator, "output.obj");
                         printf("Success. No syntax errors found.\n");
                     }
                     else {
@@ -93,6 +114,7 @@ void analyze_variables_step()
     if (token->symbol == SVAR) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
+            aux_memory_address = memory_address;
             while (token->symbol == SIDENTIFICADOR) {
                 analyze_variables();
                 if (token->symbol == SPONTOEVIRGULA) {
@@ -102,6 +124,11 @@ void analyze_variables_step()
                     exit_error("Syntax error. Expected ';' token", line_number);
                 }
             }
+            generate(&generator, NULL, ALLOC, &aux_memory_address, &variables_count);
+            aux_dealloc = (int *)malloc(2 * sizeof(int));
+            aux_dealloc[0] = aux_memory_address;
+            aux_dealloc[1] = variables_count;
+            variables_count = 0;
         }
         else {
             exit_error("Syntax error. Expected an identifier", line_number);
@@ -135,7 +162,10 @@ void analyze_variables()
         else {
             exit_error("Syntax error. Expected an identifier", line_number);
         }
+
+        variables_count++;
     } while (token->symbol != SDOISPONTOS);
+
     token = lexer_token(lexer);
     analyze_types();
 }
@@ -184,10 +214,12 @@ void analyze_commands()
 void analyze_simple_command()
 {
     int is_boolean_expression = 0;
-    if (token->symbol == SSE || token->symbol == SENQUANTO) {
+
+    if (expression[0] != NULL && (strcmp(expression[0]->lexeme, "se") == 0 || strcmp(expression[0]->lexeme, "enquanto") == 0)) {
         is_boolean_expression = 1;
     }
 
+    // first we need to check if the expression has an assignment (x := <expression>), if so, remove the assignment
     Token **postfix_expression = infix_to_postfix(expression, expression_size, &expression_size);
 
     if (expression_size > 0) {
@@ -199,6 +231,7 @@ void analyze_simple_command()
         expression[i] = NULL;
     }
 
+    // IMPORTANT: DO NOT SWAP THE ORDER OF IF STATEMENTS AND CODE BELOW
     if (token->symbol == SIDENTIFICADOR) {
         analyze_procedure_call_assignment();
     }
@@ -224,7 +257,6 @@ void analyze_procedure_call_assignment()
     Token aux = *token;
     expression[expression_size++] = token;
     if (busca_tabela_sem_restricao(token->lexeme) == -1) {
-        printf("%s\n", token->lexeme);
         exit_error("Syntax error. Identifier not found!", line_number); // Add check for var !IMPORTANT
     }
     token = lexer_token(lexer);
@@ -243,10 +275,23 @@ void analyze_assignment()
     token = lexer_token(lexer);
     analyze_expression();
     replace_unary();
+
+    Token **parsed_expression = remove_assignment_from_expression();
+    parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
+    generateExpression(&generator, parsed_expression, parsed_expression_size);
+
+    if (symbols_table[busca_tabela(expression[0]->lexeme)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(expression[0]->lexeme)].type == BOOLEAN_FUNCTION) {
+        generate(&generator, NULL, STR, NULL, &memory_address);
+    }
+    else {
+        int memory_address = get_memory_address(expression[0]->lexeme);
+        generate(&generator, NULL, STR, NULL, &memory_address);
+    }
 }
 
 void analyze_function_call()
 {
+    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela(token->lexeme)].scope);
     token = lexer_token(lexer);
 }
 
@@ -256,6 +301,7 @@ void analyze_procedure_call(Token *token)
         exit_error("Syntax error. Procedure not found", line_number);
     }
     // TODO: Code Generation
+    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela_sem_restricao(token->lexeme)].scope);
 }
 
 void analyze_read()
@@ -267,6 +313,11 @@ void analyze_read()
             if (busca_tabela(token->lexeme) == -1) {
                 exit_error("Syntax error. Identifier not found", line_number);
             }
+
+            generate(&generator, NULL, RD, NULL, NULL);
+            int memory_address = get_memory_address(token->lexeme);
+            generate(&generator, NULL, STR, NULL, &memory_address);
+
             token = lexer_token(lexer);
             if (token->symbol == SFECHAPARENTESES) {
                 token = lexer_token(lexer);
@@ -293,6 +344,16 @@ void analyze_write()
             if (busca_tabela(token->lexeme) == -1) {
                 exit_error("Syntax error. Identifier not found", line_number);
             }
+
+            if (symbols_table[busca_tabela(token->lexeme)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(token->lexeme)].type == BOOLEAN_FUNCTION) {
+                generate(&generator, NULL, LDV, NULL, &memory_address);
+            }
+            else {
+                int memory_address = get_memory_address(token->lexeme);
+                generate(&generator, NULL, LDV, NULL, &memory_address);
+            }
+            generate(&generator, NULL, PRN, NULL, NULL);
+
             token = lexer_token(lexer);
             if (token->symbol == SFECHAPARENTESES) {
                 token = lexer_token(lexer);
@@ -312,13 +373,31 @@ void analyze_write()
 
 void analyze_while()
 {
+    int aux_label_1 = label;
+    int aux_label_2 = 0;
+
+    generate(&generator, &label, "NULL", NULL, NULL);
+    label++;
+
     expression[expression_size++] = token;
     token = lexer_token(lexer);
     analyze_expression();
     replace_unary();
+
+    Token **parsed_expression = remove_assignment_from_expression();
+    parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
+    generateExpression(&generator, parsed_expression, parsed_expression_size);
+
     if (token->symbol == SFACA) {
+        aux_label_2 = label;
+        generate(&generator, NULL, JMPF, &label, NULL);
+        label++;
+
         token = lexer_token(lexer);
         analyze_simple_command();
+
+        generate(&generator, NULL, JMP, &aux_label_1, NULL);
+        generate(&generator, &aux_label_2, "NULL", NULL, NULL);
     }
     else {
         exit_error("Syntax error. Expected 'faca' token", line_number);
@@ -331,13 +410,29 @@ void analyze_if()
     token = lexer_token(lexer);
     analyze_expression();
     replace_unary();
+
+    Token **parsed_expression = remove_assignment_from_expression();
+    parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
+    generateExpression(&generator, parsed_expression, parsed_expression_size);
+
+    generate(&generator, NULL, JMPF, &label, NULL);
+    int aux_label = label;
+    label++;
+
     if (token->symbol == SENTAO) {
         token = lexer_token(lexer);
         analyze_simple_command();
+
+        generate(&generator, NULL, JMP, &label, NULL);
+        int aux_label_2 = label;
+        label++;
+        generate(&generator, &aux_label, "NULL", NULL, NULL);
+
         if (token->symbol == SSENAO) {
             token = lexer_token(lexer);
             analyze_simple_command();
         }
+        generate(&generator, &aux_label_2, "NULL", NULL, NULL);
     }
     else {
         exit_error("Syntax error. Expected 'entao' token", line_number);
@@ -346,6 +441,14 @@ void analyze_if()
 
 void analyze_subroutine()
 {
+    int aux_label = 0;
+    int flag = 0;
+    if (token->symbol == SPROCEDIMENTO || token->symbol == SFUNCAO) {
+        aux_label = label;
+        generate(&generator, NULL, JMP, &label, NULL);
+        label++;
+        flag = 1;
+    }
     // current_scope++;
     while ((token->symbol == SPROCEDIMENTO) || (token->symbol == SFUNCAO)) {
         if (token->symbol == SPROCEDIMENTO) {
@@ -361,6 +464,10 @@ void analyze_subroutine()
             exit_error("Syntax error. Expected ';' token", line_number);
         }
     }
+
+    if (flag) {
+        generate(&generator, &aux_label, "NULL", NULL, NULL);
+    }
     // current_scope--;
 }
 
@@ -374,10 +481,13 @@ void analyze_procedure_declaration()
             exit_error("Syntax error. Duplicated procedure declaration", line_number);
         }
         insere_tabela(token->lexeme, PROCEDURE, scope_counter, label);
+        generate(&generator, &label, "NULL", NULL, NULL);
         label++;
         token = lexer_token(lexer);
         if (token->symbol == SPONTOEVIRGULA) {
             analyze_code_block();
+            generate(&generator, NULL, DALLOC, &aux_dealloc[0], &aux_dealloc[1]);
+            generate(&generator, NULL, RETURN, NULL, NULL);
         }
         else {
             exit_error("Syntax error. Expected ';' token", line_number);
@@ -413,6 +523,8 @@ void analyze_function_declaration()
                 token = lexer_token(lexer);
                 if (token->symbol == SPONTOEVIRGULA) {
                     analyze_code_block();
+                    // generate(&generator, NULL, DALLOC, &aux_dealloc[0], &aux_dealloc[1]);
+                    generate(&generator, NULL, RETURNF, NULL, NULL);
                 }
                 else {
                     exit_error("Syntax error. Expected ';' token", line_number);
@@ -525,6 +637,25 @@ void replace_unary()
             }
         }
     }
+}
+
+Token **remove_assignment_from_expression()
+{
+    Token **new_expression = (Token **)malloc(expression_size * sizeof(Token *));
+    parsed_expression_size = expression_size;
+    if (expression[1]->symbol == SATRIBUICAO) {
+        for (int i = 2; i < parsed_expression_size; i++) {
+            new_expression[i - 2] = expression[i];
+        }
+        parsed_expression_size -= 2;
+    }
+    else {
+        for (int i = 0; i < parsed_expression_size; i++) {
+            new_expression[i] = expression[i];
+        }
+    }
+
+    return new_expression;
 }
 
 #endif /* PARSER_H */

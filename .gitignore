@@ -3,3 +3,6 @@
 
 # Text files
 *.txt
+
+# Obj files (Assembly code)
+*.obj

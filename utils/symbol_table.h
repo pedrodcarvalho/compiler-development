@@ -74,7 +74,7 @@ int verifica_duplicidade(char *lexeme, int scope)
         if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && symbols_table[i].scope == scope) {
             return 1; // Encontrou duplicidade
         }
-        if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && symbols_table[i].type == PROGRAM_NAME && scope == 0) { // Add scope == 0 !IMPORTANT
+        if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && symbols_table[i].type == PROGRAM_NAME /* && scope == 0 */) { // Add scope == 0 !IMPORTANT
             return 1;                                                                                              // Variável com mesmo nome do programa
         }
     }
@@ -138,16 +138,26 @@ Symbol *find_symbol(Symbol *table, char *lexeme)
     return NULL;
 }
 
+int get_memory_address(char *lexeme)
+{
+    Symbol *s = malloc(sizeof(Symbol));
+    for (int i = symbols_count - 1; i >= 0; i--) {
+        if (strcmp(symbols_table[i].lexeme, lexeme) == 0) {
+            s = &symbols_table[i];
+            break;
+        }
+    }
+    if (s != NULL) {
+        return s->memory_address;
+    }
+    return -1;
+}
+
 void semantic_analysis(char *lexeme, Token **expression, int size, int is_boolean_expression)
 {
     int types[100];
     int types_counter = 0;
     int assignment_expression = 0;
-
-    for (int i = 0; i < size; i++) {
-        printf("%s ", expression[i]->lexeme);
-    }
-    printf("\n");
 
     for (int i = 0; i < size; i++) {
         Token *term = expression[i];
@@ -204,6 +214,7 @@ void semantic_analysis(char *lexeme, Token **expression, int size, int is_boolea
         }
     }
 
+    // HUGE ERROR HERE!
     if (types[0] != BOOLEAN && is_boolean_expression) {
         char *message = (char *)malloc(100 * sizeof(char));
         sprintf(message, "Incompatible type for expression. Found %s.", TypeNames[types[0]]);
