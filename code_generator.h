@@ -107,16 +107,23 @@ void generate(CodeGenerator *generator, int *label1, const char *command, int *l
 }
 
 // Generate code for expressions
-void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount)
+void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount, int current_scope)
 {
     for (int i = 0; i < tokenCount; i++) {
         char *token = tokens[i]->lexeme;
 
         if (strcmp(token, "+") == 0) {
-            generate(generator, NULL, ADD, NULL, NULL);
+            if (tokens[i]->symbol != SPOSITIVO) {
+                generate(generator, NULL, ADD, NULL, NULL);
+            }
         }
         else if (strcmp(token, "-") == 0) {
-            generate(generator, NULL, SUB, NULL, NULL);
+            if (tokens[i]->symbol == SNEGATIVO) {
+                generate(generator, NULL, INV, NULL, NULL);
+            }
+            else {
+                generate(generator, NULL, SUB, NULL, NULL);
+            }
         }
         else if (strcmp(token, "*") == 0) {
             generate(generator, NULL, MULT, NULL, NULL);
@@ -139,6 +146,9 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
         else if (strcmp(token, "==") == 0) {
             generate(generator, NULL, CEQ, NULL, NULL);
         }
+        else if (strcmp(token, "!=") == 0) { // Checar se eh <> ou !=
+            generate(generator, NULL, CDIF, NULL, NULL);
+        }
         else if (strcmp(token, "!") == 0) {
             generate(generator, NULL, NEG, NULL, NULL);
         }
@@ -160,9 +170,18 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
         else if (strcmp(token, "ou") == 0) {
             generate(generator, NULL, OR, NULL, NULL);
         }
+        else if (strcmp(token, "nao") == 0) {
+            generate(generator, NULL, NEG, NULL, NULL);
+        }
         else {
-            int memoryAddress = get_memory_address(token);
-            generate(generator, NULL, LDV, NULL, &memoryAddress);
+            int memoryAddress = get_memory_address(token, current_scope);
+            if (symbols_table[busca_tabela(token)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(token)].type == BOOLEAN_FUNCTION) {
+                int zero = 0;
+                generate(generator, NULL, LDV, NULL, &zero);
+            }
+            else {
+                generate(generator, NULL, LDV, NULL, &memoryAddress);
+            }
         }
     }
 }

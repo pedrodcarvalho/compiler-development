@@ -75,7 +75,7 @@ int verifica_duplicidade(char *lexeme, int scope)
             return 1; // Encontrou duplicidade
         }
         if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && symbols_table[i].type == PROGRAM_NAME /* && scope == 0 */) { // Add scope == 0 !IMPORTANT
-            return 1;                                                                                              // Variável com mesmo nome do programa
+            return 1;                                                                                                    // Variável com mesmo nome do programa
         }
     }
     return 0; // Não encontrou duplicidade
@@ -99,10 +99,10 @@ int pesquisa_declproc_tabela(char *lexeme)
     return -1;
 }
 
-int pesquisa_declfunc_tabela(char *lexeme)
+int pesquisa_declfunc_tabela(char *lexeme, int scope)
 {
     for (int i = 0; i < symbols_count; i++) {
-        if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && (symbols_table[i].type == INTEGER_FUNCTION || symbols_table[i].type == BOOLEAN_FUNCTION)) {
+        if (strcmp(symbols_table[i].lexeme, lexeme) == 0 && (symbols_table[i].type == INTEGER_FUNCTION || symbols_table[i].type == BOOLEAN_FUNCTION) && symbols_table[i].scope == scope) {
             return i;
         }
     }
@@ -138,13 +138,23 @@ Symbol *find_symbol(Symbol *table, char *lexeme)
     return NULL;
 }
 
-int get_memory_address(char *lexeme)
+int get_memory_address(char *lexeme, int scope)
 {
     Symbol *s = malloc(sizeof(Symbol));
-    for (int i = symbols_count - 1; i >= 0; i--) {
-        if (strcmp(symbols_table[i].lexeme, lexeme) == 0) {
-            s = &symbols_table[i];
-            break;
+    if (scope != 1) {
+        for (int i = symbols_count - 1; i >= 0; i--) {
+            if (strcmp(symbols_table[i].lexeme, lexeme) == 0) {
+                s = &symbols_table[i];
+                break;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < symbols_count; i++) {
+            if (strcmp(symbols_table[i].lexeme, lexeme) == 0) {
+                s = &symbols_table[i];
+                break;
+            }
         }
     }
     if (s != NULL) {
