@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "code_reader.h"
+#include "parser.h"
 
 #define CODE_FILE "input.txt"
 #define OBJ_FILE "output.obj"
@@ -129,7 +130,7 @@ void compile_code(GtkWidget *widget, gpointer user_data)
     snprintf(command, sizeof(command), "./parser_tester %s", CODE_FILE);
 
     // Run the compilation command
-    int status = system(command);
+    int status = run_compiler(CODE_FILE);
 
     // Check compilation status and display error or success message
     if (status == 0) {

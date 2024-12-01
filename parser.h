@@ -6,6 +6,8 @@
 #include "./utils/symbol_table.h"
 #include "./utils/exception.h"
 
+void parser_init(char *file);
+void analyze_program();
 void analyze_program();
 void analyze_code_block();
 void analyze_variables_step();
@@ -48,6 +50,13 @@ int aux_dealloc_current_size = 0;
 int zero = 0;
 int one = 1;
 int if_while_labels = 0;
+
+int run_compiler(char *filename)
+{
+    parser_init(filename);
+    analyze_program();
+    return 0;
+}
 
 void parser_init(char *file)
 {
