@@ -3,22 +3,6 @@
 
 int main()
 {
-    // Test for program with logical e operator error.
-    /*
-    programa teste;
-    var x, a, b, c, z: inteiro;
-    inicio
-    x := 1;
-    a := 2;
-    b := 3;
-    c := 7;
-    z := 1;
-    se (x + a * b) e ((b + c) div z)
-    entao escreva(x)
-    senao escreva(a)
-    fim.
-     */
-
     Semantic *semantic = create_semantic();
     semantic_insert_symbol(semantic, INTEGER, "x", 0, "0x0001");
     semantic_insert_symbol(semantic, INTEGER, "a", 0, "0x0002");

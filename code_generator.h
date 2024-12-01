@@ -10,7 +10,6 @@
 
 #define MAX_CODE_LENGTH 10000
 
-// Define constants for commands
 #define LDC "LDC"
 #define LDV "LDV"
 #define ADD "ADD"
@@ -48,7 +47,6 @@ typedef struct CodeGenerator {
     int allocIndex;
 } CodeGenerator;
 
-// Initialize the CodeGenerator
 void initializeCodeGenerator(CodeGenerator *generator)
 {
     generator->code[0] = '\0';
@@ -57,7 +55,6 @@ void initializeCodeGenerator(CodeGenerator *generator)
     generator->allocIndex = 0;
 }
 
-// Centralized generate function
 void generate(CodeGenerator *generator, int *label1, const char *command, int *label2, int *memoryAddress)
 {
     char label1Str[10] = {0};
@@ -76,7 +73,6 @@ void generate(CodeGenerator *generator, int *label1, const char *command, int *l
 
     char buffer[100] = {0};
 
-    // Add label1 if present
     if (label1) {
         sprintf(buffer + strlen(buffer), "%-4s", label1Str);
     }
@@ -84,29 +80,23 @@ void generate(CodeGenerator *generator, int *label1, const char *command, int *l
         strcat(buffer, "    ");
     }
 
-    // Add command
     if (command) {
         sprintf(buffer + strlen(buffer), "%-7s", command);
     }
 
-    // Add label2 if present
     if (label2) {
         sprintf(buffer + strlen(buffer), " %-3s", label2Str);
     }
 
-    // Add memory address or variable if present
     if (memoryAddress) {
         sprintf(buffer + strlen(buffer), " %-3s", memoryAddressStr);
     }
 
-    // Append newline
     strcat(buffer, "\n");
 
-    // Append the instruction to the code buffer
     strcat(generator->code, buffer);
 }
 
-// Generate code for expressions
 void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount, int current_scope)
 {
     for (int i = 0; i < tokenCount; i++) {
@@ -146,7 +136,7 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
         else if (strcmp(token, "==") == 0) {
             generate(generator, NULL, CEQ, NULL, NULL);
         }
-        else if (strcmp(token, "!=") == 0) { // Checar se eh <> ou !=
+        else if (strcmp(token, "!=") == 0) {
             generate(generator, NULL, CDIF, NULL, NULL);
         }
         else if (strcmp(token, "!") == 0) {
@@ -186,7 +176,6 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
     }
 }
 
-// Memory allocation management
 void allocateMemory(CodeGenerator *generator, int start, int size)
 {
     generate(generator, NULL, ALLOC, NULL, NULL);
@@ -203,7 +192,6 @@ void deallocateMemory(CodeGenerator *generator)
     }
 }
 
-// Save code to a file
 void saveCodeToFile(CodeGenerator *generator, const char *filePath)
 {
     FILE *file = fopen(filePath, "w");
@@ -216,7 +204,6 @@ void saveCodeToFile(CodeGenerator *generator, const char *filePath)
     }
 }
 
-// Debug code
 void debugCode(CodeGenerator *generator)
 {
     printf("%s", generator->code);

@@ -1,6 +1,10 @@
+#ifndef CODE_READER_H
+#define CODE_READER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gtk/gtk.h>
 
 typedef struct {
     char command[10];
@@ -25,13 +29,12 @@ void safe_realloc(int **stack, int *stackSize, int newSize)
     }
     *stack = temp;
     if (newSize > *stackSize) {
-        // Initialize new elements to zero
         memset(*stack + *stackSize, 0, (newSize - *stackSize) * sizeof(int));
     }
     *stackSize = newSize;
 }
 
-void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE *output, int **jumps, int jumpsCount)
+void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE *output, int **jumps, int jumpsCount, GtkWidget *widget)
 {
     if (strcmp(instruction->command, "LDC") == 0) {
         safe_realloc(stack, stackSize, *stackSize + 1);
@@ -131,7 +134,6 @@ void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE
         for (int j = 0; j < jumpsCount; j++) {
             if (jumps[j][0] == atoi(instruction->attr1)) {
                 *i = jumps[j][1];
-                printf("Jumping to: %d\n", atoi(instruction->attr1));
                 break;
             }
         }
@@ -147,18 +149,22 @@ void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE
         }
         safe_realloc(stack, stackSize, *stackSize - 1);
     }
-    else if (strcmp(instruction->command, "NULL") == 0) {
-        // Do nothing
-    }
     else if (strcmp(instruction->command, "RD") == 0) {
-        int value;
-        printf("Enter a value: ");
-        scanf("%d", &value);
-        safe_realloc(stack, stackSize, *stackSize + 1);
-        (*stack)[*stackSize - 1] = value;
+        GtkWidget *dialog = gtk_dialog_new_with_buttons("Input Required", GTK_WINDOW(gtk_widget_get_toplevel(widget)), GTK_DIALOG_MODAL, "_OK", GTK_RESPONSE_OK, NULL);
+        gtk_window_set_default_size(GTK_WINDOW(dialog), 300, -1);
+        GtkWidget *entry = gtk_entry_new();
+        gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), entry, TRUE, TRUE, 0);
+        gtk_widget_show_all(dialog);
+
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+            const char *value = gtk_entry_get_text(GTK_ENTRY(entry));
+            int int_value = atoi(value);
+            safe_realloc(stack, stackSize, *stackSize + 1);
+            (*stack)[*stackSize - 1] = int_value;
+        }
+        gtk_widget_destroy(dialog);
     }
     else if (strcmp(instruction->command, "PRN") == 0) {
-        printf("Result: %d\n", (*stack)[*stackSize - 1]);
         fprintf(output, "%d\n", (*stack)[*stackSize - 1]);
         safe_realloc(stack, stackSize, *stackSize - 1);
     }
@@ -176,18 +182,7 @@ void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE
         *i = (*stack)[*stackSize - 1] - 1;
         safe_realloc(stack, stackSize, *stackSize - 1);
     }
-    else if (strcmp(instruction->command, "HLT") == 0) {
-        // Do nothing
-    }
-    /*
-    ALLOC m,n (Alocar memória):
-    Para k:=0 até n-1 faça
-    {s:=s+1;M[s]:=M[m+k]}
-    DALLOC m,n (Desalocar memória):
-    Para k:=n-1 até 0 faça
-    {M[m+k]:=M[s];s:=s-1}
-    */
-    if (strcmp(instruction->command, "ALLOC") == 0) {
+    else if (strcmp(instruction->command, "ALLOC") == 0) {
         for (int k = 0; k < atoi(instruction->attr2); k++) {
             safe_realloc(stack, stackSize, *stackSize + 1);
             (*stack)[*stackSize - 1] = (*stack)[atoi(instruction->attr1) + k];
@@ -199,23 +194,14 @@ void execute(Instruction *instruction, int **stack, int *stackSize, int *i, FILE
             safe_realloc(stack, stackSize, *stackSize - 1);
         }
     }
-
-    // Print stack for debugging
-    printf("Stack: ");
-    for (int k = 0; k < *stackSize; k++) {
-        printf("%d ", (*stack)[k]);
-    }
-    printf("\n");
 }
 
-int main()
+int read_code(GtkWidget *widget, char *filename)
 {
-    int debug = 0;
-
     int *stack = NULL;
     int stackSize = 0;
 
-    FILE *input = fopen("./output.obj", "r");
+    FILE *input = fopen(filename, "r");
     if (!input) {
         printf("Erro ao abrir arquivo de entrada.\n");
         return 1;
@@ -255,51 +241,54 @@ int main()
                 }
                 strcpy(instructions[instructionCount].attr1, attr1);
             }
+            else {
+                strcpy(instructions[instructionCount].attr1, "");
+            }
             if (parsed == 3) {
                 strcpy(instructions[instructionCount].attr2, attr2);
             }
+            else {
+                strcpy(instructions[instructionCount].attr2, "");
+            }
             instructionCount++;
         }
-    }
-
-    // DEBUG
-    printf("Jump table:\n");
-    for (int i = 0; i < jumpsCount; i++) {
-        printf("%d -> %d\n", jumps[i][0], jumps[i][1]);
+        else {
+            strcpy(instructions[instructionCount].command, "");
+            strcpy(instructions[instructionCount].attr1, "");
+            strcpy(instructions[instructionCount].attr2, "");
+        }
     }
 
     int i = 0;
 
-    while (strcmp(instructions[i].command, "HLT") != 0 /* && debug < 50 */) {
-        // DEBUG
-        printf("Executing (%d): %s %s %s\n", i, instructions[i].command, instructions[i].attr1, instructions[i].attr2);
+    FILE *stack_log = fopen("stack.log", "w");
+    if (!stack_log) {
+        perror("Failed to open stack.log");
+        fclose(input);
+        fclose(output);
+        return 1;
+    }
 
-        // if (strcmp(instructions[i].command, "CALL") == 0) {
-        //     stack = realloc(stack, (stackSize + 1) * sizeof(int));
-        //     stack[stackSize] = i + 1;
-        //     stackSize++;
-        //     printf("Storing next line from CALL: %d\n", i + 1);
-        // }
+    while (strcmp(instructions[i].command, "HLT") != 0) {
+        execute(&instructions[i], &stack, &stackSize, &i, output, jumps, jumpsCount, widget);
 
-        // if (strcmp(instructions[i].command, "JMP") == 0) {
-        //     for (int j = 0; j < jumpsCount; j++) {
-        //         if (jumps[j][0] == atoi(instructions[i].attr1)) {
-        //             i = jumps[j][1];
-        //             printf("Jumping to: %d\n", atoi(instructions[i].attr1));
-        //             break;
-        //         }
-        //     }
-        // }
-
-        execute(&instructions[i], &stack, &stackSize, &i, output, jumps, jumpsCount);
+        if (stackSize == 0) {
+            fprintf(stack_log, "Empty");
+        }
+        for (int j = 0; j < stackSize; j++) {
+            fprintf(stack_log, "%d ", stack[j]);
+        }
+        fprintf(stack_log, "| %s %s %s\n", instructions[i].command, instructions[i].attr1, instructions[i].attr2);
 
         i++;
-        debug++;
     }
 
     fclose(input);
     fclose(output);
+    fclose(stack_log);
     free(stack);
     free(instructions);
     return 0;
 }
+
+#endif // CODE_READER_H

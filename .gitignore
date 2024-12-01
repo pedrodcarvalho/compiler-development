@@ -6,3 +6,6 @@
 
 # Obj files (Assembly code)
 *.obj
+
+# Log files (Stack and Error logs)
+*.log

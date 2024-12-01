@@ -58,8 +58,7 @@ Token *lexer_token(Lexer *lexer)
         while (lexer->character == '{' || lexer->character == ' ' || lexer->character == '\b' || lexer->character == '\t') {
             if (lexer->character == '{') {
                 while (lexer->character != '}' && lexer->character != EOF && lexer->character != '\xff') {
-                    // In CRLF format the line number would be incremented twice, thus we check only for '\n'.
-                    if (lexer->character == '\n' /* || lexer->character == '\r' */) {
+                    if (lexer->character == '\n') {
                         line_number++;
                     }
                     lexer->character = fgetc(lexer->file);

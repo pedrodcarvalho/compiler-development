@@ -68,7 +68,6 @@ void analyze_program()
             if (token->symbol == SPONTOEVIRGULA) {
                 generate(&generator, NULL, ALLOC, &zero, &one);
                 analyze_code_block();
-                // we need to deallocate all variables based on symbols table size
                 for (int i = symbols_count; i > 0; i--) {
                     if (symbols_table[i].scope == 1) {
                         variables_count++;
@@ -80,9 +79,6 @@ void analyze_program()
                     if (lexer->character == EOF || lexer->character == '}') {
                         generate(&generator, NULL, DALLOC, &zero, &one);
                         generate(&generator, NULL, HLT, NULL, NULL);
-                        // print_table(); // DEBUG
-                        // print_expression(expression_size); // DEBUG
-                        // debugCode(&generator); // DEBUG
                         saveCodeToFile(&generator, "output.obj");
                         printf("Success. No syntax errors found.\n");
                     }
@@ -228,8 +224,6 @@ void analyze_simple_command()
     if (expression[0] != NULL && (strcmp(expression[0]->lexeme, "se") == 0 || strcmp(expression[0]->lexeme, "enquanto") == 0)) {
         is_boolean_expression = 1;
     }
-
-    // first we need to check if the expression has an assignment (x := <expression>), if so, remove the assignment
     Token **postfix_expression = infix_to_postfix(expression, expression_size, &expression_size);
 
     if (expression_size > 0) {
@@ -241,7 +235,6 @@ void analyze_simple_command()
         expression[i] = NULL;
     }
 
-    // IMPORTANT: DO NOT SWAP THE ORDER OF IF STATEMENTS AND CODE BELOW
     if (token->symbol == SIDENTIFICADOR) {
         analyze_procedure_call_assignment();
     }
@@ -267,7 +260,7 @@ void analyze_procedure_call_assignment()
     Token aux = *token;
     expression[expression_size++] = token;
     if (busca_tabela_sem_restricao(token->lexeme) == -1) {
-        exit_error("Syntax error. Identifier not found!", line_number); // Add check for var !IMPORTANT
+        exit_error("Syntax error. Identifier not found!", line_number);
     }
     token = lexer_token(lexer);
     if (token->symbol == SATRIBUICAO) {
@@ -301,7 +294,7 @@ void analyze_assignment()
 
 void analyze_function_call()
 {
-    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela(token->lexeme)].scope + if_while_labels);
+    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela(token->lexeme)].memory_address);
     token = lexer_token(lexer);
 }
 
@@ -310,8 +303,7 @@ void analyze_procedure_call(Token *token)
     if (pesquisa_declproc_tabela(token->lexeme) == -1) {
         exit_error("Syntax error. Procedure not found", line_number);
     }
-    // TODO: Code Generation
-    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela_sem_restricao(token->lexeme)].scope + if_while_labels);
+    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela_sem_restricao(token->lexeme)].memory_address);
 }
 
 void analyze_read()
@@ -465,7 +457,6 @@ void analyze_subroutine()
         label++;
         flag = 1;
     }
-    // current_scope++;
     while ((token->symbol == SPROCEDIMENTO) || (token->symbol == SFUNCAO)) {
         if (token->symbol == SPROCEDIMENTO) {
             analyze_procedure_declaration();
@@ -484,7 +475,6 @@ void analyze_subroutine()
     if (flag) {
         generate(&generator, &aux_label, "NULL", NULL, NULL);
     }
-    // current_scope--;
 }
 
 void analyze_procedure_declaration()
@@ -671,7 +661,6 @@ void replace_unary()
 {
     for (int i = 0; i < expression_size; i++) {
         if (expression[i]->symbol == SMAIS || expression[i]->symbol == SMENOS) {
-            // (i == 1 || i == 2 ) 1 when the expression starts "se" or "enquanto" 2 when the expression is an assignment
             if (i == 1 || i == 2 || expression[i - 1]->symbol == SABREPARENTESES || is_operator(expression[i - 1]->symbol)) {
                 if (expression[i]->symbol == SMAIS) {
                     expression[i]->symbol = SPOSITIVO;
@@ -688,7 +677,6 @@ Token **remove_assignment_from_expression()
 {
     Token **new_expression = (Token **)malloc(expression_size * sizeof(Token *));
     parsed_expression_size = expression_size;
-    // Add check for expression_size == 1
     if (expression_size == 1) {
         return expression;
     }
@@ -707,4 +695,4 @@ Token **remove_assignment_from_expression()
     return new_expression;
 }
 
-#endif /* PARSER_H */
+#endif // PARSER_H

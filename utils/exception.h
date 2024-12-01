@@ -3,7 +3,16 @@
 
 void exit_error(const char *message, int line_number)
 {
-    fprintf(stderr, "Error on line %d: %s\n", line_number, message);
+    FILE *file = fopen("stderr.log", "w");
+
+    if (file) {
+        fprintf(file, "Error on line %d: %s\n", line_number, message);
+        fclose(file);
+    }
+    else {
+        fprintf(stderr, "Error on line %d: %s\n", line_number, message);
+    }
+
     exit(EXIT_FAILURE);
 }
 
