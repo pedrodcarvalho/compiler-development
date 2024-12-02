@@ -43,9 +43,9 @@ typedef enum {
     SFALSO,
     SPOSITIVO,
     SNEGATIVO
-} Symbols;
+} Symbols_t;
 
-const char *SymbolNames[] = {
+const char *symbol_names[] = {
     "SPROGRAMA",
     "SINICIO",
     "SFIM",
@@ -88,12 +88,12 @@ const char *SymbolNames[] = {
     "SPOSITIVO",
     "SNEGATIVO"};
 
-int is_operand(Symbols symbol)
+int is_operand(Symbols_t symbol)
 {
     return symbol == SIDENTIFICADOR || symbol == SNUMERO || symbol == SVERDADEIRO || symbol == SFALSO;
 }
 
-int is_operator(Symbols symbol)
+int is_operator(Symbols_t symbol)
 {
     return symbol == SOU || symbol == SE || symbol == SNAO || symbol == SMAIOR || symbol == SMAIORIG || symbol == SIG || symbol == SMENOR || symbol == SMENORIG || symbol == SDIF || symbol == SMAIS || symbol == SMENOS || symbol == SMULT || symbol == SDIV || symbol == SPOSITIVO || symbol == SNEGATIVO;
 }

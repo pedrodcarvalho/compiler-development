@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "code_reader.h"
 #include "parser.h"
 
@@ -13,7 +16,7 @@ typedef struct {
     GtkTextView *editor_view;
     GtkTextView *line_numbers_view;
     GtkWidget *error_label;
-    GtkWidget *cursor_position_label; // Add a label for cursor position
+    GtkWidget *cursor_position_label;
 } EditorComponents;
 
 void update_line_numbers(GtkTextBuffer *buffer, gpointer user_data)
@@ -49,8 +52,8 @@ void update_cursor_position(GtkTextBuffer *buffer, gpointer user_data)
     GtkTextMark *insert_mark = gtk_text_buffer_get_insert(buffer);
     gtk_text_buffer_get_iter_at_mark(buffer, &cursor_iter, insert_mark);
 
-    gint line = gtk_text_iter_get_line(&cursor_iter) + 1;       // Line numbers are 1-based
-    gint col = gtk_text_iter_get_line_offset(&cursor_iter) + 1; // Column numbers are 1-based
+    gint line = gtk_text_iter_get_line(&cursor_iter) + 1;
+    gint col = gtk_text_iter_get_line_offset(&cursor_iter) + 1;
 
     gchar *cursor_position_text = g_strdup_printf("Line: %d, Col: %d", line, col);
     gtk_label_set_text(GTK_LABEL(editor_components->cursor_position_label), cursor_position_text);
@@ -112,28 +115,32 @@ void load_file(GtkWidget *widget, gpointer user_data)
 
 void compile_code(GtkWidget *widget, gpointer user_data)
 {
-    // Access the EditorComponents structure
-    EditorComponents *editor_components = (EditorComponents *)user_data;
-    GtkWidget *error_label = editor_components->error_label; // Access error_label from the struct
 
-    // Ensure error_label is valid before setting its text
+    EditorComponents *editor_components = (EditorComponents *)user_data;
+    GtkWidget *error_label = editor_components->error_label;
+
     if (!GTK_IS_LABEL(error_label)) {
         g_print("Error: invalid GtkLabel\n");
         return;
     }
 
-    // Save the current editor content to file before compiling
     save_to_file(editor_components->text_buffer);
 
-    // Compile the saved code
-    char command[256];
-    snprintf(command, sizeof(command), "./parser_tester %s", CODE_FILE);
+    pid_t pid = fork();
+    int status;
 
-    // Run the compilation command
-    int status = run_compiler(CODE_FILE);
+    if (pid == 0) {
+        run_compiler(CODE_FILE);
+        exit(EXIT_SUCCESS);
+    }
+    else if (pid < 0) {
+        g_print("Error: failed to fork\n");
+        return;
+    }
 
-    // Check compilation status and display error or success message
-    if (status == 0) {
+    waitpid(pid, &status, 0);
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS) {
         gtk_label_set_text(GTK_LABEL(error_label), "Compilation succeeded: No errors detected.");
         g_print("Code compiled successfully to %s\n", OBJ_FILE);
     }
@@ -208,20 +215,19 @@ int main(int argc, char *argv[])
     gtk_box_pack_start(GTK_BOX(main_tab), error_box, FALSE, FALSE, 0);
 
     error_label = gtk_label_new("Status: No actions performed yet.");
-    editor_components.error_label = error_label; // Assign the error label to the struct
+    editor_components.error_label = error_label;
     gtk_box_pack_start(GTK_BOX(error_box), error_label, TRUE, TRUE, 0);
 
     cursor_position_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(main_tab), cursor_position_box, FALSE, FALSE, 0);
 
     cursor_position_label = gtk_label_new("Line: 1, Col: 1");
-    editor_components.cursor_position_label = cursor_position_label; // Assign the cursor position label
+    editor_components.cursor_position_label = cursor_position_label;
     gtk_box_pack_start(GTK_BOX(cursor_position_box), cursor_position_label, FALSE, FALSE, 0);
 
     g_signal_connect(file_button, "file-set", G_CALLBACK(load_file), &editor_components);
     g_signal_connect(compile_button, "clicked", G_CALLBACK(compile_code), &editor_components);
 
-    // Connect the cursor-position signal to update the position label
     g_signal_connect(editor_components.text_buffer, "changed", G_CALLBACK(update_cursor_position), &editor_components);
 
     g_signal_connect(editor_components.text_buffer, "changed", G_CALLBACK(update_line_numbers), &editor_components);

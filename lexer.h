@@ -1,12 +1,12 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
-#include "./utils/exception.h"
 #include "./constants/symbols.h"
+#include "./utils/exception.h"
 #include "./utils/token.h"
 
 int line_number = 1;
@@ -17,6 +17,9 @@ typedef struct
     char character;
 } Lexer;
 
+/**
+ * Initializes a lexer for a given file.
+ */
 Lexer *lexer_init(const char *filename)
 {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
@@ -33,21 +36,33 @@ Lexer *lexer_init(const char *filename)
     return lexer;
 }
 
+/**
+ * Destroys a lexer instance.
+ */
 void lexer_destroy(Lexer *lexer)
 {
     fclose(lexer->file);
     free(lexer);
 }
 
-void free_token(Token *token)
+/**
+ * Frees a token.
+ */
+void free_token(Token_t *token)
 {
     free(token->lexeme);
     free(token);
 }
 
-Token *lexer_get_token(Lexer *lexer);
+/**
+ * Main lexer function that retrieves the next token.
+ */
+Token_t *lexer_get_token(Lexer *lexer);
 
-Token *lexer_token(Lexer *lexer)
+/**
+ * Handles the lexer logic for recognizing different tokens.
+ */
+Token_t *lexer_token(Lexer *lexer)
 {
     while (lexer->character == '\n' || lexer->character == '\r') {
         lexer->character = fgetc(lexer->file);
@@ -84,7 +99,10 @@ Token *lexer_token(Lexer *lexer)
     return NULL;
 }
 
-Token *lexer_handle_digit(Lexer *lexer)
+/**
+ * Handles digit recognition in the lexer.
+ */
+Token_t *lexer_handle_digit(Lexer *lexer)
 {
     char num[32] = {0};
     int idx = 0;
@@ -97,7 +115,10 @@ Token *lexer_handle_digit(Lexer *lexer)
     return create_token(num, SNUMERO);
 }
 
-Token *lexer_handle_identifier_reserved_word(Lexer *lexer)
+/**
+ * Handles identifiers and reserved words recognition in the lexer.
+ */
+Token_t *lexer_handle_identifier_reserved_word(Lexer *lexer)
 {
     char id[64] = {0};
     int idx = 0;
@@ -153,7 +174,10 @@ Token *lexer_handle_identifier_reserved_word(Lexer *lexer)
     return create_token(id, SIDENTIFICADOR);
 }
 
-Token *lexer_handle_assignment(Lexer *lexer)
+/**
+ * Handles assignment token recognition in the lexer.
+ */
+Token_t *lexer_handle_assignment(Lexer *lexer)
 {
     char assignment[3] = {0};
     assignment[0] = lexer->character;
@@ -168,7 +192,10 @@ Token *lexer_handle_assignment(Lexer *lexer)
     return create_token(assignment, SATRIBUICAO);
 }
 
-Token *lexer_handle_arithmetic_op(Lexer *lexer)
+/**
+ * Handles arithmetic operator token recognition in the lexer.
+ */
+Token_t *lexer_handle_arithmetic_op(Lexer *lexer)
 {
     char op = lexer->character;
     lexer->character = fgetc(lexer->file);
@@ -180,7 +207,10 @@ Token *lexer_handle_arithmetic_op(Lexer *lexer)
     return create_token("*", SMULT);
 }
 
-Token *lexer_handle_relational_op(Lexer *lexer)
+/**
+ * Handles relational operator token recognition in the lexer.
+ */
+Token_t *lexer_handle_relational_op(Lexer *lexer)
 {
     char relational_op[3] = {0};
     relational_op[0] = lexer->character;
@@ -223,7 +253,10 @@ Token *lexer_handle_relational_op(Lexer *lexer)
     return NULL;
 }
 
-Token *lexer_get_token(Lexer *lexer)
+/**
+ * Retrieves the next token from the lexer.
+ */
+Token_t *lexer_get_token(Lexer *lexer)
 {
     if (isdigit(lexer->character)) {
         return lexer_handle_digit(lexer);
@@ -272,6 +305,9 @@ Token *lexer_get_token(Lexer *lexer)
     return NULL;
 }
 
+/**
+ * Retrieves the current line number.
+ */
 int get_line_number()
 {
     return line_number;

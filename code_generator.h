@@ -1,12 +1,12 @@
 #ifndef CODE_GENERATOR_C
 #define CODE_GENERATOR_C
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include "./utils/token.h"
 #include "./utils/symbol_table.h"
+#include "./utils/token.h"
 
 #define MAX_CODE_LENGTH 10000
 
@@ -41,40 +41,40 @@
 
 typedef struct CodeGenerator {
     char code[MAX_CODE_LENGTH];
-    int labelCounter;
-    int memoryPosition;
-    int variableAlloc[100];
-    int allocIndex;
+    int label_counter;
+    int memory_pos;
+    int variable_alloc[100];
+    int alloc_idx;
 } CodeGenerator;
 
-void initializeCodeGenerator(CodeGenerator *generator)
+void init_code_generator(CodeGenerator *generator)
 {
     generator->code[0] = '\0';
-    generator->labelCounter = 1;
-    generator->memoryPosition = 0;
-    generator->allocIndex = 0;
+    generator->label_counter = 1;
+    generator->memory_pos = 0;
+    generator->alloc_idx = 0;
 }
 
-void generate(CodeGenerator *generator, int *label1, const char *command, int *label2, int *memoryAddress)
+void generate(CodeGenerator *generator, int *label_1, const char *command, int *label_2, int *memory_address)
 {
-    char label1Str[10] = {0};
-    char label2Str[10] = {0};
-    char memoryAddressStr[10] = {0};
+    char label_1_stringfied[10] = {0};
+    char label_2_stringfied[10] = {0};
+    char memory_address_stringfied[10] = {0};
 
-    if (label1) {
-        sprintf(label1Str, "%d", *label1);
+    if (label_1) {
+        sprintf(label_1_stringfied, "%d", *label_1);
     }
-    if (label2) {
-        sprintf(label2Str, "%d", *label2);
+    if (label_2) {
+        sprintf(label_2_stringfied, "%d", *label_2);
     }
-    if (memoryAddress) {
-        sprintf(memoryAddressStr, "%d", *memoryAddress);
+    if (memory_address) {
+        sprintf(memory_address_stringfied, "%d", *memory_address);
     }
 
     char buffer[100] = {0};
 
-    if (label1) {
-        sprintf(buffer + strlen(buffer), "%-4s", label1Str);
+    if (label_1) {
+        sprintf(buffer + strlen(buffer), "%-4s", label_1_stringfied);
     }
     else {
         strcat(buffer, "    ");
@@ -84,22 +84,21 @@ void generate(CodeGenerator *generator, int *label1, const char *command, int *l
         sprintf(buffer + strlen(buffer), "%-7s", command);
     }
 
-    if (label2) {
-        sprintf(buffer + strlen(buffer), " %-3s", label2Str);
+    if (label_2) {
+        sprintf(buffer + strlen(buffer), " %-3s", label_2_stringfied);
     }
 
-    if (memoryAddress) {
-        sprintf(buffer + strlen(buffer), " %-3s", memoryAddressStr);
+    if (memory_address) {
+        sprintf(buffer + strlen(buffer), " %-3s", memory_address_stringfied);
     }
 
     strcat(buffer, "\n");
-
     strcat(generator->code, buffer);
 }
 
-void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount, int current_scope)
+void generate_expression(CodeGenerator *generator, Token_t **tokens, int token_count, int current_scope)
 {
-    for (int i = 0; i < tokenCount; i++) {
+    for (int i = 0; i < token_count; i++) {
         char *token = tokens[i]->lexeme;
 
         if (strcmp(token, "+") == 0) {
@@ -133,14 +132,11 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
         else if (strcmp(token, ">=") == 0) {
             generate(generator, NULL, CMAQ, NULL, NULL);
         }
-        else if (strcmp(token, "==") == 0) {
+        else if (strcmp(token, "=") == 0) {
             generate(generator, NULL, CEQ, NULL, NULL);
         }
         else if (strcmp(token, "!=") == 0) {
             generate(generator, NULL, CDIF, NULL, NULL);
-        }
-        else if (strcmp(token, "!") == 0) {
-            generate(generator, NULL, NEG, NULL, NULL);
         }
         else if (isdigit(token[0])) {
             int value = atoi(token);
@@ -164,35 +160,19 @@ void generateExpression(CodeGenerator *generator, Token **tokens, int tokenCount
             generate(generator, NULL, NEG, NULL, NULL);
         }
         else {
-            int memoryAddress = get_memory_address(token, current_scope);
-            if (symbols_table[busca_tabela(token)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(token)].type == BOOLEAN_FUNCTION) {
+            int memory_address = get_memory_address(token, current_scope);
+            if (symbols_table[search_tabel(token)].type == INTEGER_FUNCTION || symbols_table[search_tabel(token)].type == BOOLEAN_FUNCTION) {
                 int zero = 0;
                 generate(generator, NULL, LDV, NULL, &zero);
             }
             else {
-                generate(generator, NULL, LDV, NULL, &memoryAddress);
+                generate(generator, NULL, LDV, NULL, &memory_address);
             }
         }
     }
 }
 
-void allocateMemory(CodeGenerator *generator, int start, int size)
-{
-    generate(generator, NULL, ALLOC, NULL, NULL);
-    generator->variableAlloc[generator->allocIndex++] = size;
-    generator->memoryPosition += size;
-}
-
-void deallocateMemory(CodeGenerator *generator)
-{
-    if (generator->allocIndex > 0) {
-        int size = generator->variableAlloc[--generator->allocIndex];
-        generator->memoryPosition -= size;
-        generate(generator, NULL, DALLOC, NULL, &size);
-    }
-}
-
-void saveCodeToFile(CodeGenerator *generator, const char *filePath)
+void save_code_to_file(CodeGenerator *generator, const char *filePath)
 {
     FILE *file = fopen(filePath, "w");
     if (file) {
@@ -204,7 +184,7 @@ void saveCodeToFile(CodeGenerator *generator, const char *filePath)
     }
 }
 
-void debugCode(CodeGenerator *generator)
+void print_generated_code_debug(CodeGenerator *generator)
 {
     printf("%s", generator->code);
 }

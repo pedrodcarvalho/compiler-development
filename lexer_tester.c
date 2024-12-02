@@ -7,8 +7,8 @@ int main(int argc, char *argv[])
     }
 
     Lexer *lexer = lexer_init(argv[1]);
-    Token *token = NULL;
-    Token *last_token = NULL;
+    Token_t *token = NULL;
+    Token_t *last_token = NULL;
     FILE *file = fopen("lexer_output.txt", "w");
 
     while ((token = lexer_token(lexer)) != NULL) {
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
         }
         last_token = token;
 
-        fprintf(file, "Lexeme: %-10s | Symbol: %-10s\n", token->lexeme, SymbolNames[token->symbol]);
+        fprintf(file, "Lexeme: %-10s | Symbol_t: %-10s\n", token->lexeme, symbol_names[token->symbol]);
     }
 
     if (last_token) {

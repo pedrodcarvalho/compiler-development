@@ -10,9 +10,9 @@ typedef enum {
     BOOLEAN_FUNCTION,
     FUNCTION,
     PROCEDURE
-} Types;
+} Type_t;
 
-const char *TypeNames[] = {
+const char *type_names[] = {
     "PROGRAM_NAME",
     "VARIABLE",
     "INTEGER",

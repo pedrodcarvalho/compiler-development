@@ -3,11 +3,10 @@
 
 #include "lexer.h"
 #include "code_generator.h"
-#include "./utils/symbol_table.h"
 #include "./utils/exception.h"
+#include "./utils/symbol_table.h"
 
 void parser_init(char *file);
-void analyze_program();
 void analyze_program();
 void analyze_code_block();
 void analyze_variables_step();
@@ -31,17 +30,21 @@ void analyze_simple_expression();
 void analyze_term();
 void analyze_factor();
 void replace_unary();
-Token **remove_assignment_from_expression();
+Token_t **remove_assignment_from_expression();
 
 Lexer *lexer = NULL;
-Token *token = NULL;
+Token_t *token = NULL;
 CodeGenerator generator;
+
 int current_scope = 1;
 int scope_counter = 1;
+
 int label = 1;
 int memory_address = 0;
+
 int expression_size = 0;
 int parsed_expression_size = 0;
+
 int variables_count = 0;
 int aux_memory_address = 0;
 int *aux_dealloc = NULL;
@@ -49,19 +52,17 @@ int aux_dealloc_current_size = 0;
 
 int zero = 0;
 int one = 1;
-int if_while_labels = 0;
 
-int run_compiler(char *filename)
+void run_compiler(char *filename)
 {
     parser_init(filename);
     analyze_program();
-    return 0;
 }
 
 void parser_init(char *file)
 {
     lexer = lexer_init(file);
-    initializeCodeGenerator(&generator);
+    init_code_generator(&generator);
 }
 
 void analyze_program()
@@ -72,7 +73,7 @@ void analyze_program()
         variables_count = 0;
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
-            insere_tabela(token->lexeme, PROGRAM_NAME, current_scope, memory_address++);
+            insert_tabel(token->lexeme, PROGRAM_NAME, current_scope, memory_address++);
             token = lexer_token(lexer);
             if (token->symbol == SPONTOEVIRGULA) {
                 generate(&generator, NULL, ALLOC, &zero, &one);
@@ -88,7 +89,7 @@ void analyze_program()
                     if (lexer->character == EOF || lexer->character == '}') {
                         generate(&generator, NULL, DALLOC, &zero, &one);
                         generate(&generator, NULL, HLT, NULL, NULL);
-                        saveCodeToFile(&generator, "output.obj");
+                        save_code_to_file(&generator, "output.obj");
                         printf("Success. No syntax errors found.\n");
                     }
                     else {
@@ -155,8 +156,8 @@ void analyze_variables()
 {
     do {
         if (token->symbol == SIDENTIFICADOR) {
-            if (!verifica_duplicidade(token->lexeme, scope_counter)) {
-                insere_tabela(token->lexeme, VARIABLE, scope_counter, memory_address++);
+            if (!is_duplicated(token->lexeme, scope_counter)) {
+                insert_tabel(token->lexeme, VARIABLE, scope_counter, memory_address++);
             }
             else {
                 exit_error("Syntax error. Duplicated identifier", line_number);
@@ -193,7 +194,7 @@ void analyze_types()
     else {
         for (int i = symbols_count - 1; i >= 0; i--) {
             if (symbols_table[i].type == VARIABLE) {
-                atualiza_tipo_tabela(symbols_table[i].lexeme, (token->symbol == SINTEIRO) ? INTEGER : BOOLEAN);
+                update_type(symbols_table[i].lexeme, (token->symbol == SINTEIRO) ? INTEGER : BOOLEAN);
             }
         }
         token = lexer_token(lexer);
@@ -229,12 +230,11 @@ void analyze_commands()
 void analyze_simple_command()
 {
     int is_boolean_expression = 0;
-
     if (expression[0] != NULL && (strcmp(expression[0]->lexeme, "se") == 0 || strcmp(expression[0]->lexeme, "enquanto") == 0)) {
         is_boolean_expression = 1;
     }
-    Token **postfix_expression = infix_to_postfix(expression, expression_size, &expression_size);
 
+    Token_t **postfix_expression = infix_to_postfix(expression, expression_size, &expression_size);
     if (expression_size > 0) {
         semantic_analysis(expression[0]->lexeme, postfix_expression, expression_size, is_boolean_expression);
     }
@@ -266,9 +266,9 @@ void analyze_simple_command()
 
 void analyze_procedure_call_assignment()
 {
-    Token aux = *token;
+    Token_t aux = *token;
     expression[expression_size++] = token;
-    if (busca_tabela_sem_restricao(token->lexeme) == -1) {
+    if (search_tabel_no_restrictions(token->lexeme) == -1) {
         exit_error("Syntax error. Identifier not found!", line_number);
     }
     token = lexer_token(lexer);
@@ -288,11 +288,11 @@ void analyze_assignment()
     analyze_expression();
     replace_unary();
 
-    Token **parsed_expression = remove_assignment_from_expression();
+    Token_t **parsed_expression = remove_assignment_from_expression();
     parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
-    generateExpression(&generator, parsed_expression, parsed_expression_size, current_scope);
+    generate_expression(&generator, parsed_expression, parsed_expression_size, current_scope);
 
-    if (symbols_table[busca_tabela(expression[0]->lexeme)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(expression[0]->lexeme)].type == BOOLEAN_FUNCTION) {
+    if (symbols_table[search_tabel(expression[0]->lexeme)].type == INTEGER_FUNCTION || symbols_table[search_tabel(expression[0]->lexeme)].type == BOOLEAN_FUNCTION) {
         generate(&generator, NULL, STR, NULL, &zero);
     }
     else {
@@ -303,16 +303,16 @@ void analyze_assignment()
 
 void analyze_function_call()
 {
-    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela(token->lexeme)].memory_address);
+    generate(&generator, NULL, CALL, NULL, &symbols_table[search_tabel(token->lexeme)].memory_address);
     token = lexer_token(lexer);
 }
 
-void analyze_procedure_call(Token *token)
+void analyze_procedure_call(Token_t *token)
 {
-    if (pesquisa_declproc_tabela(token->lexeme) == -1) {
+    if (search_procedure_declaration(token->lexeme) == -1) {
         exit_error("Syntax error. Procedure not found", line_number);
     }
-    generate(&generator, NULL, CALL, NULL, &symbols_table[busca_tabela_sem_restricao(token->lexeme)].memory_address);
+    generate(&generator, NULL, CALL, NULL, &symbols_table[search_tabel_no_restrictions(token->lexeme)].memory_address);
 }
 
 void analyze_read()
@@ -321,7 +321,7 @@ void analyze_read()
     if (token->symbol == SABREPARENTESES) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
-            if (busca_tabela(token->lexeme) == -1) {
+            if (search_tabel(token->lexeme) == -1) {
                 exit_error("Syntax error. Identifier not found", line_number);
             }
 
@@ -352,11 +352,11 @@ void analyze_write()
     if (token->symbol == SABREPARENTESES) {
         token = lexer_token(lexer);
         if (token->symbol == SIDENTIFICADOR) {
-            if (busca_tabela(token->lexeme) == -1) {
+            if (search_tabel(token->lexeme) == -1) {
                 exit_error("Syntax error. Identifier not found", line_number);
             }
 
-            if (symbols_table[busca_tabela(token->lexeme)].type == INTEGER_FUNCTION || symbols_table[busca_tabela(token->lexeme)].type == BOOLEAN_FUNCTION) {
+            if (symbols_table[search_tabel(token->lexeme)].type == INTEGER_FUNCTION || symbols_table[search_tabel(token->lexeme)].type == BOOLEAN_FUNCTION) {
                 generate(&generator, NULL, LDV, NULL, &zero);
             }
             else {
@@ -395,21 +395,19 @@ void analyze_while()
     analyze_expression();
     replace_unary();
 
-    Token **parsed_expression = remove_assignment_from_expression();
+    Token_t **parsed_expression = remove_assignment_from_expression();
     parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
-    generateExpression(&generator, parsed_expression, parsed_expression_size, current_scope);
+    generate_expression(&generator, parsed_expression, parsed_expression_size, current_scope);
 
     if (token->symbol == SFACA) {
         aux_label_2 = label;
         generate(&generator, NULL, JMPF, &label, NULL);
         label++;
-        if_while_labels++;
 
         token = lexer_token(lexer);
         analyze_simple_command();
 
         generate(&generator, NULL, JMP, &aux_label_1, NULL);
-        if_while_labels++;
         generate(&generator, &aux_label_2, "NULL", NULL, NULL);
     }
     else {
@@ -424,15 +422,14 @@ void analyze_if()
     analyze_expression();
     replace_unary();
 
-    Token **parsed_expression = remove_assignment_from_expression();
+    Token_t **parsed_expression = remove_assignment_from_expression();
     parsed_expression = infix_to_postfix(parsed_expression, parsed_expression_size, &parsed_expression_size);
-    generateExpression(&generator, parsed_expression, parsed_expression_size, current_scope);
+    generate_expression(&generator, parsed_expression, parsed_expression_size, current_scope);
 
     generate(&generator, NULL, JMPF, &label, NULL);
     int aux_label = label;
     int aux_label_2 = label;
     label++;
-    if_while_labels++;
 
     if (token->symbol == SENTAO) {
         token = lexer_token(lexer);
@@ -442,7 +439,6 @@ void analyze_if()
             generate(&generator, NULL, JMP, &label, NULL);
             aux_label_2 = label;
             label++;
-            if_while_labels++;
             generate(&generator, &aux_label, "NULL", NULL, NULL);
 
             token = lexer_token(lexer);
@@ -492,10 +488,10 @@ void analyze_procedure_declaration()
     current_scope++;
     scope_counter++;
     if (token->symbol == SIDENTIFICADOR) {
-        if (pesquisa_declproc_tabela(token->lexeme) != -1) {
+        if (search_procedure_declaration(token->lexeme) != -1) {
             exit_error("Syntax error. Duplicated procedure declaration", line_number);
         }
-        insere_tabela(token->lexeme, PROCEDURE, scope_counter, label);
+        insert_tabel(token->lexeme, PROCEDURE, scope_counter, label);
         generate(&generator, &label, "NULL", NULL, NULL);
         label++;
         token = lexer_token(lexer);
@@ -529,10 +525,10 @@ void analyze_function_declaration()
     current_scope++;
     scope_counter++;
     if (token->symbol == SIDENTIFICADOR) {
-        if (pesquisa_declfunc_tabela(token->lexeme, scope_counter) != -1) {
+        if (search_function_declaration(token->lexeme, scope_counter) != -1) {
             exit_error("Syntax error. Duplicated function declaration", line_number);
         }
-        insere_tabela(token->lexeme, FUNCTION, scope_counter, label);
+        insert_tabel(token->lexeme, FUNCTION, scope_counter, label);
         generate(&generator, &label, "NULL", NULL, NULL);
         label++;
         token = lexer_token(lexer);
@@ -591,11 +587,11 @@ void analyze_expression()
 void analyze_simple_expression()
 {
     if (token->symbol == SIDENTIFICADOR) {
-        int indice = busca_tabela(token->lexeme);
-        if (indice == -1) {
+        int index = search_tabel(token->lexeme);
+        if (index == -1) {
             exit_error("Syntax error. Identifier not found", line_number);
         }
-        if (symbols_table[indice].type == INTEGER_FUNCTION || symbols_table[indice].type == BOOLEAN_FUNCTION) {
+        if (symbols_table[index].type == INTEGER_FUNCTION || symbols_table[index].type == BOOLEAN_FUNCTION) {
             expression[expression_size++] = token;
         }
     }
@@ -624,11 +620,11 @@ void analyze_term()
 void analyze_factor()
 {
     if (token->symbol == SIDENTIFICADOR) {
-        int indice = busca_tabela(token->lexeme);
-        if (indice == -1) {
+        int index = search_tabel(token->lexeme);
+        if (index == -1) {
             exit_error("Syntax error. Identifier not found", line_number);
         }
-        if (symbols_table[indice].type == INTEGER_FUNCTION || symbols_table[indice].type == BOOLEAN_FUNCTION) {
+        if (symbols_table[index].type == INTEGER_FUNCTION || symbols_table[index].type == BOOLEAN_FUNCTION) {
             analyze_function_call();
         }
         else {
@@ -682,9 +678,9 @@ void replace_unary()
     }
 }
 
-Token **remove_assignment_from_expression()
+Token_t **remove_assignment_from_expression()
 {
-    Token **new_expression = (Token **)malloc(expression_size * sizeof(Token *));
+    Token_t **new_expression = (Token_t **)malloc(expression_size * sizeof(Token_t *));
     parsed_expression_size = expression_size;
     if (expression_size == 1) {
         return expression;
